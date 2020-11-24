@@ -11,11 +11,9 @@
 #define LIST  4
 #define BACK  5
 
-#define MAXARGS 100
+#define MAXARGS 10
 #define MAX_CMD_LEN 512
 #define MAX_ARG_LEN 64
-void PipeCmd(int argc,char* argv[]);
-void RunCmd(int argc,char* argv[]);
 
 int 
 getcmd(char *buf, int nbuf)
@@ -43,7 +41,7 @@ void ScanCmd(char *cmd,char* argv[],int* argc)
 	int i,j;
 	i = 0;
 	j = 0;
-	for(i=0;cmd[i]!='\n' && cmd[i]!='\0';i++)
+	for(i=0;cmd[i]!='\n' && cmd[i]!='\0' && j<MAXARGS;i++)
 	{
 		while(isBlank(cmd[i]))
 		{
@@ -51,7 +49,7 @@ void ScanCmd(char *cmd,char* argv[],int* argc)
 		}
 		argv[j] = cmd + i;
 		j++;
-		while(!isBlank(cmd[i]) && cmd[i]!='\0')
+		while(!isBlank(cmd[i]) && cmd[i]!='\0' && cmd[i]!='\n')
 		{
 			i++;
 		}
@@ -60,37 +58,7 @@ void ScanCmd(char *cmd,char* argv[],int* argc)
 	argv[j] = '\0';
 	*argc = j;
 }
-void PipeCmd(int argc,char* argv[])
-{
-	int i;
-	for(i=0;i<argc;i++)
-	{
-		// if(argv[i] == '|')
-		if(!strcmp(argv[i],"|"))
-		{
-			argv[i] = '\0';
-			break;
-		}
-	}
-	int pd[2];
-	pipe(pd);
-	if(fork() == 0)
-	{
-		close(1);
-		dup(pd[1]);
-		close(pd[0]);
-		close(pd[1]);
-		RunCmd(i,argv);
-	}
-	else
-	{
-		close(0);
-		dup(pd[0]);
-		close(pd[0]);
-		close(pd[1]);
-		RunCmd(argc-i-1,argv+i+1);
-	}
-}
+
 void RunCmd(int argc,char* argv[])
 {
 	
@@ -105,34 +73,28 @@ void RunCmd(int argc,char* argv[])
 		// if(argv[i] == '|')
 		if(!strcmp(argv[i],"|"))
 		{
-			// argv[i] = '\0';
-			PipeCmd(argc,argv);
-			// for(j=0;j<argc;j++)
-			// {
-			// 	if(!strcmp(argv[j],"|"))
-			// 	{
-			// 		argv[j] = '\0';
-			// 		break;
-			// 	}
-			// }
-			// int pd[2];
-			// pipe(pd);
-			// if(fork() == 0)
-			// {
-			// 	close(1);
-			// 	dup(pd[1]);
-			// 	close(pd[0]);
-			// 	close(pd[1]);
-			// 	RunCmd(i,argv);
-			// }
-			// else
-			// {
-			// 	close(0);
-			// 	dup(pd[0]);
-			// 	close(pd[0]);
-			// 	close(pd[1]);
-			// 	RunCmd(argc-i-1,argv+i+1);
-			// }
+			argv[i][0] = 0;
+
+			int pd[2];
+			pipe(pd);
+			if(fork() == 0)
+			{
+				close(1);
+				dup(pd[1]);
+				close(pd[0]);
+				close(pd[1]);
+				RunCmd(i,argv);
+				return;
+			}
+			else
+			{
+				close(0);
+				dup(pd[0]);
+				close(pd[0]);
+				close(pd[1]);
+				RunCmd(argc-i-1,argv+i+1);
+				return;
+			}
 		}
 	}
 	for(i=0;i<argc;i++)
@@ -149,10 +111,6 @@ void RunCmd(int argc,char* argv[])
 				// fprintf(2,"%s\n","ERROR!");
 				// Mark("open file");
 				argv[i] = 0;
-				// Mark("recur");
-				RunCmd(i,argv);
-				break;
-				// exec(argv[0],argv);
 			}
 			else
 			{
@@ -168,8 +126,6 @@ void RunCmd(int argc,char* argv[])
 				close(0);
 				open(argv[i+1],O_RDONLY);
 				argv[i] = 0;
-				RunCmd(i,argv);break;
-				// exec(argv[0],argv);
 			}
 			else
 			{
@@ -182,13 +138,20 @@ void RunCmd(int argc,char* argv[])
 	// {
 	// 	printf("%s,",argv[i]);
 	// }
+	argv[argc] = 0;
 	exec(argv[0],argv);
 }
 
 int main()
 {
 	static char buf[100];
-	// int i;
+	int fd;
+    while((fd = open("console", O_RDWR)) >= 0){
+        if(fd >= 3){
+            close(fd);
+            break;
+        }
+    }
 	while(getcmd(buf,sizeof(buf)) >= 0)
 	{
 		if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ')
@@ -199,22 +162,20 @@ int main()
         		fprintf(2, "cannot cd %s\n", buf+3);
       		continue;
     	}
-		if(buf[0] == 'q' && buf[1] == 'u' && buf[2] == 'i' && buf[3] == 't')
+		// 输入"quit "时退出nsh
+		if(buf[0] == 'q' && buf[1] == 'u' && buf[2] == 'i' && buf[3] == 't' && buf[4] == ' ')
 		{
 			exit(0);
 		}
 		if(fork() == 0)
 		{
-			char* argv[100];
+			char* argv[MAXARGS];
 			int argc = -1;
 			// Mark("mark 1");
 			ScanCmd(buf,argv,&argc);
 			RunCmd(argc,argv);
 		}
-		else
-		{
-			wait(0);
-		}
+		wait(0);
 		memset(buf,0,100);
 	}
 	exit(0);
