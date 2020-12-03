@@ -41,19 +41,29 @@ int bit_isset(char *array, int index) {
   char m = (1 << (index % 8));
   return (b & m) == m;
 }
-
+int bit_isset_xor(char *array, int index)
+{
+  char b = array[index/16];
+  char m = (1 << ((index/2) % 8));
+  return (b & m) == m;
+}
 // Set bit at position index in array to 1
 void bit_set(char *array, int index) {
   char b = array[index/8];
   char m = (1 << (index % 8));
   array[index/8] = (b | m);
 }
-
-// Clear bit at position index in array
-void bit_clear(char *array, int index) {
+void bit_xor(char *array, int index)
+{
   char b = array[index/8];
   char m = (1 << (index % 8));
-  array[index/8] = (b & ~m);
+  array[index/8] = (b ^ m);
+}
+// Clear bit at position index in array
+void bit_clear(char *array, int index) {
+  char b = array[index/16];
+  char m = (1 << ((index/2) % 8));
+  array[index/16] = (b ^ m);
 }
 
 // Print a bit vector as a list of ranges of 1 bits
@@ -229,7 +239,8 @@ bd_mark(void *start, void *stop)
         // if a block is allocated at size k, mark it as split too.
         bit_set(bd_sizes[k].split, bi);
       }
-      bit_set(bd_sizes[k].alloc, bi);
+      // bit_set(bd_sizes[k].alloc, bi);
+      bit_xor(bd_sizes[k].alloc,bi);
     }
   }
 }
@@ -240,7 +251,7 @@ int
 bd_initfree_pair(int k, int bi) {
   int buddy = (bi % 2 == 0) ? bi+1 : bi-1;
   int free = 0;
-  if(bit_isset(bd_sizes[k].alloc, bi) !=  bit_isset(bd_sizes[k].alloc, buddy)) {
+  if(bit_isset_xor(bd_sizes[k].alloc, bi) == 1 /*!=  bit_isset_xor(bd_sizes[k].alloc, buddy)*/) {
     // one of the pair is free
     free = BLK_SIZE(k);
     if(bit_isset(bd_sizes[k].alloc, bi))
@@ -317,7 +328,8 @@ bd_init(void *base, void *end) {
   // initialize free list and allocate the alloc array for each size k
   for (int k = 0; k < nsizes; k++) {
     lst_init(&bd_sizes[k].free);
-    sz = sizeof(char)* ROUNDUP(NBLK(k), 8)/8;
+    sz = sizeof(char)* ROUNDUP(NBLK(k), 8)/16;
+    sz = (sz==0)?1:sz;
     bd_sizes[k].alloc = p;
     memset(bd_sizes[k].alloc, 0, sz);
     p += sz;

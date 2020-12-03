@@ -12,11 +12,10 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
-
 struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
-  struct file file[NFILE];
+  // struct file file[NFILE];
 } ftable;
 
 void
@@ -31,15 +30,18 @@ filealloc(void)
 {
   struct file *f;
 
-  acquire(&ftable.lock);
-  for(f = ftable.file; f < ftable.file + NFILE; f++){
-    if(f->ref == 0){
-      f->ref = 1;
-      release(&ftable.lock);
-      return f;
-    }
-  }
-  release(&ftable.lock);
+  // acquire(&ftable.lock);
+  // for(f = ftable.file; f < ftable.file + NFILE; f++){
+  //   if(f->ref == 0){
+  //     f->ref = 1;
+  //     release(&ftable.lock);
+  //     return f;
+  //   }
+  // }
+  f = (struct file *)bd_malloc(sizeof(struct file));
+  f -> ref = 1;
+  // release(&ftable.lock);
+  return f;
   return 0;
 }
 
