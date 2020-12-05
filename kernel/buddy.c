@@ -41,6 +41,7 @@ int bit_isset(char *array, int index) {
   char m = (1 << (index % 8));
   return (b & m) == m;
 }
+// 伙伴共用情况下判断地址为index的内存块是否被分配
 int bit_isset_xor(char *array, int index)
 {
   char b = array[index/16];
@@ -53,6 +54,7 @@ void bit_set(char *array, int index) {
   char m = (1 << (index % 8));
   array[index/8] = (b | m);
 }
+// 伙伴共用情况下置地址为index的内存块分配位
 void bit_set_xor(char *array, int index)
 {
   char b = array[index/16];
@@ -65,6 +67,7 @@ void bit_clear(char *array, int index) {
   char m = (1 << (index % 8));
   array[index/8] = (b & ~m);
 }
+// 伙伴共用情况下清空地址为index的内存块分配位
 void bit_clear_xor(char *array, int index) {
   char b = array[index/16];
   char m = (1 << ((index/2) % 8));
@@ -278,6 +281,9 @@ bd_initfree_pair(int k, int bi, void *start, void *end){
 // bd_left and bd_right.
 int
 // bd_initfree(void *bd_left, void *bd_right) {
+// 由于两个伙伴块共用一个bit来标记是否分配，因此无法按照旧有的方法判断
+// 单个内存块的分配情况，所以需要增加两个参数，标记当前空闲内存的起始和末尾地址
+// bd_initfree_pair()函数同理
 bd_initfree(void *bd_left, void *bd_right, void *start, void *end) {
   int free = 0;
 
